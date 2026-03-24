@@ -3,38 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PokePack HighSpeed Simulator</title>
+    <title>PokéPack Simulator - Pro Edition</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
-<body class="text-white">
+<body class="bg-[#0a0a0c] text-white overflow-x-hidden font-sans">
 
-    <header class="py-6">
-        <h1 class="text-2xl font-black text-center text-blue-500 italic uppercase tracking-tighter">Ultra Fast Pack Opener</h1>
-    </header>
-
-    <div class="controls-container">
-        <select id="set-picker">
+    <nav class="p-4 border-b border-white/10 flex justify-between items-center bg-[#0f0f12]">
+        <h1 class="text-xl font-black tracking-tighter text-yellow-500 italic">POKEPACK.IO CLONE</h1>
+        <select id="set-select" class="bg-black border border-white/20 rounded-lg px-3 py-1 text-sm font-bold outline-none">
             <option value="sv6">Twilight Masquerade</option>
             <option value="sv5">Temporal Forces</option>
-            <option value="sv4pt5">Paldean Fates</option>
-            <option value="swsh12">Silver Tempest</option>
+            <option value="sv1">Scarlet & Violet Base</option>
         </select>
-        <button id="btn-open">MỞ PACK (QUICK)</button>
-    </div>
+    </nav>
 
-    <div id="deck-container" class="pack-viewport">
-        <div class="placeholder-text">Chọn bộ và bấm mở để bắt đầu</div>
-    </div>
-
-    <div id="summary-screen">
-        <div class="summary-content">
-            <p class="label">TỔNG GIÁ TRỊ</p>
-            <div id="total-price-text" class="price-big">$0.00</div>
-            <div id="history-list" class="history-grid"></div>
-            <button onclick="resetApp()" class="btn-reset">MỞ TIẾP TỤC</button>
+    <main class="flex flex-col items-center justify-center min-h-[80vh] relative">
+        
+        <div id="start-screen" class="z-50 text-center">
+            <div id="pack-visual" class="w-64 h-96 bg-blue-900 rounded-2xl mb-6 shadow-2xl border-4 border-blue-400 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform">
+                <span class="font-black text-2xl rotate-90 opacity-20">POKEMON TCG</span>
+            </div>
+            <button id="btn-open-pack" class="bg-yellow-500 text-black font-black px-12 py-4 rounded-full text-xl hover:bg-yellow-400 transition-all shadow-xl">MỞ PACK</button>
         </div>
+
+        <div id="card-table" class="hidden grid grid-cols-2 md:grid-cols-5 gap-4 p-4 max-w-6xl w-full">
+            </div>
+
+    </main>
+
+    <div id="summary-overlay" class="hidden fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center backdrop-blur-md">
+        <h2 class="text-green-400 text-6xl font-black mb-2" id="total-val">$0.00</h2>
+        <p class="text-gray-500 mb-8 uppercase tracking-widest text-sm">Tổng giá trị thu thập</p>
+        <button onclick="location.reload()" class="bg-white text-black font-bold px-10 py-3 rounded-full">MỞ PACK KHÁC</button>
     </div>
 
     <script src="script.js"></script>
