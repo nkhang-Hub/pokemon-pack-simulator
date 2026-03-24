@@ -3,60 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PokéPack Fast Swipe</title>
+    <title>PokéPack - Rarity Sort</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         body { background: #050507; color: white; overflow: hidden; height: 100vh; font-family: sans-serif; }
-        
-        /* Xấp bài xếp chồng */
-        .pack-container {
-            position: relative;
-            width: 310px;
-            height: 430px;
-            perspective: 1000px;
-            margin-top: 20px;
-        }
-
-        .tcg-card {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            cursor: grab;
-            touch-action: none;
-            will-change: transform;
-            transition: transform 0.1s ease-out;
-            user-select: none;
-        }
-
-        .card-inner {
-            width: 100%;
-            height: 100%;
-            border-radius: 16px;
-            border: 3px solid #1e293b;
-            background: #000;
-            overflow: hidden;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.9);
-        }
-
-        /* Hiệu ứng thẻ hiếm */
-        .rare-hit { border-color: #facc15; box-shadow: 0 0 30px rgba(234, 179, 8, 0.5); }
-        
+        .pack-container { position: relative; width: 310px; height: 430px; perspective: 1000px; margin-top: 20px; }
+        .tcg-card { position: absolute; width: 100%; height: 100%; cursor: grab; touch-action: none; will-change: transform; transition: transform 0.1s ease-out; user-select: none; }
+        .card-inner { width: 100%; height: 100%; border-radius: 16px; border: 3px solid #1e293b; background: #000; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.9); }
+        .rare-hit { border-color: #facc15; box-shadow: 0 0 35px rgba(234, 179, 8, 0.6); }
         .hidden { display: none !important; }
-
-        /* Animation cho nút mở */
-        @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
-            70% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
-            100% { transform: scale(1); }
-        }
-        .btn-pulse { animation: pulse 2s infinite; }
     </style>
 </head>
 <body class="flex flex-col items-center">
 
     <nav class="w-full p-4 border-b border-white/5 flex justify-between items-center bg-[#0a0a0f] z-50">
-        <h1 class="text-xl font-black text-blue-500 italic uppercase tracking-tighter">FastPack <span class="text-white text-xs bg-red-600 px-1 rounded ml-1">1s</span></h1>
+        <h1 class="text-xl font-black text-yellow-500 italic uppercase italic">PokéPack <span class="text-white text-[10px] bg-blue-600 px-2 py-0.5 rounded-full ml-1 font-sans not-italic">RARITY SORT</span></h1>
         <select id="set-select" class="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1 text-sm outline-none font-bold">
             <option value="sv6">Twilight Masquerade</option>
             <option value="sv5">Temporal Forces</option>
@@ -64,20 +26,20 @@
         </select>
     </nav>
 
-    <div id="ui-controls" class="mt-12 mb-8 z-50 transition-all duration-300">
-        <button id="btn-open" class="btn-pulse bg-blue-600 hover:bg-blue-500 text-white font-black px-16 py-4 rounded-full shadow-2xl transition-all active:scale-90 text-lg">MỞ GÓI (1S)</button>
+    <div id="ui-controls" class="mt-12 mb-8 z-50">
+        <button id="btn-open" class="bg-white text-black font-black px-16 py-4 rounded-full shadow-2xl transition-all active:scale-90 text-lg uppercase tracking-tighter">Mở Pack Ngay</button>
     </div>
 
     <div id="pack-zone" class="pack-container">
-        <div id="placeholder" class="absolute inset-0 bg-gradient-to-br from-blue-900 to-black rounded-2xl border-4 border-blue-500/30 flex items-center justify-center opacity-50">
-            <p class="text-blue-400 font-bold italic">READY TO RIP</p>
+        <div id="placeholder" class="absolute inset-0 border-2 border-dashed border-zinc-800 rounded-2xl flex items-center justify-center text-zinc-600 font-bold uppercase tracking-widest text-sm text-center p-4">
+            Bài hiếm sẽ nằm ở cuối xấp bài
         </div>
     </div>
 
     <div id="summary" class="hidden fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center backdrop-blur-2xl">
-        <p class="text-zinc-500 uppercase tracking-widest text-xs mb-2">Total Value</p>
+        <p class="text-zinc-500 uppercase tracking-widest text-xs mb-2 font-bold">Pack Value</p>
         <h2 id="total-price" class="text-8xl font-black text-green-400 font-mono mb-10 tracking-tighter">$0.00</h2>
-        <button onclick="location.reload()" class="bg-white text-black font-black px-14 py-4 rounded-full uppercase hover:bg-zinc-200 transition-all active:scale-95">Mở Pack Khác</button>
+        <button onclick="location.reload()" class="bg-yellow-500 text-black font-black px-14 py-4 rounded-full uppercase hover:bg-yellow-400 transition-all active:scale-95">Mở Pack Tiếp Theo</button>
     </div>
 
     <script>
@@ -89,7 +51,6 @@
         let cardsLeft = 0;
         let totalPrice = 0;
 
-        // Hàm gọi API siêu tốc
         async function getCard(setId, rarity) {
             try {
                 const r = await fetch(`https://api.pokemontcg.io/v2/cards?q=set.id:${setId} rarity:"${rarity}"&pageSize=15`);
@@ -100,32 +61,33 @@
 
         btnOpen.onclick = async () => {
             const setId = setSelect.value;
-            
-            // UI phản hồi ngay lập tức
             btnOpen.disabled = true;
-            btnOpen.innerText = "OPENING...";
-            uiControls.style.opacity = "0.3";
+            btnOpen.innerText = "LOADING...";
 
-            // Bước nhảy vọt: Tải song song 10 lá
-            const cardTasks = [];
-            for(let i=0; i<9; i++) cardTasks.push(getCard(setId, Math.random() > 0.4 ? 'Common' : 'Uncommon'));
-            cardTasks.push(getCard(setId, 'Ultra Rare')); // Lá hiếm chốt hạ
-
-            const cards = await Promise.all(cardTasks);
+            // Tải song song tất cả các nhóm độ hiếm
+            const commonTasks = [];
+            for(let i=0; i<7; i++) commonTasks.push(getCard(setId, 'Common'));
             
-            // Xóa placeholder và ẩn nút để tập trung vào bài
+            const uncommonTasks = [];
+            for(let i=0; i<2; i++) uncommonTasks.push(getCard(setId, 'Uncommon'));
+
+            const rareTask = getCard(setId, 'Ultra Rare'); // Lá hiếm nhất
+
+            // Chờ tất cả dữ liệu về (trong khoảng 1s)
+            const commons = await Promise.all(commonTasks);
+            const uncommons = await Promise.all(uncommonTasks);
+            const rare = await rareTask;
+
+            // Gom lại theo thứ tự: Hiếm nhất ở dưới cùng (Index 0), Thường ở trên cùng
+            const sortedPack = [rare, ...uncommons, ...commons].filter(c => c !== null);
+
             packZone.innerHTML = '';
             uiControls.classList.add('hidden');
             totalPrice = 0;
-            cardsLeft = 10;
+            cardsLeft = sortedPack.length;
 
-            // Card Trick: Để lá Rare ở vị trí thứ 2 (để khi rút gần hết mới thấy)
-            const rareCard = cards.pop();
-            cards.splice(1, 0, rareCard);
-
-            // Render xấp bài ngay lập tức
-            cards.reverse().forEach((card, index) => {
-                if(!card) return;
+            // Render từ dưới lên trên (Lá cuối danh sách có Z-Index cao nhất)
+            sortedPack.forEach((card, index) => {
                 const price = card.tcgplayer?.prices?.holofoil?.market || card.tcgplayer?.prices?.normal?.market || 0.15;
                 totalPrice += price;
                 renderCard(card, index);
@@ -135,7 +97,7 @@
         function renderCard(card, index) {
             const el = document.createElement('div');
             el.className = 'tcg-card';
-            el.style.zIndex = index;
+            el.style.zIndex = index; // index càng cao (lá Common) càng nằm trên
             
             const isRare = card.rarity.includes('Rare');
 
@@ -155,7 +117,6 @@
                 const p = e.touches ? e.touches[0] : e;
                 x = p.clientX - startX;
                 y = p.clientY - startY;
-                // Hiệu ứng di chuyển mượt mà theo tay
                 el.style.transform = `translate(${x}px, ${y}px) rotate(${x/15}deg)`;
             };
 
@@ -165,13 +126,15 @@
                 document.removeEventListener('touchmove', onMove);
                 document.removeEventListener('touchend', onEnd);
 
-                // Ngưỡng rút bài: 100px là bay
                 if (Math.abs(x) > 100 || Math.abs(y) > 100) {
                     const angle = Math.atan2(y, x);
                     el.style.transition = 'transform 0.3s ease-in';
-                    el.style.transform = `translate(${Math.cos(angle)*1000}px, ${Math.sin(angle)*1000}px) rotate(${x/2}deg)`;
+                    el.style.transform = `translate(${Math.cos(angle)*1000}px, ${Math.sin(angle)*1000}px)`;
                     
-                    if(isRare) confetti({ particleCount: 100, spread: 80, origin: { y: 0.8 } });
+                    // Hiệu ứng đặc biệt khi vuốt lá hiếm cuối cùng
+                    if(isRare) {
+                        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                    }
 
                     setTimeout(() => {
                         el.remove();
@@ -179,7 +142,7 @@
                         if(cardsLeft === 0) {
                             document.getElementById('summary').classList.remove('hidden');
                             document.getElementById('total-price').innerText = "$" + totalPrice.toFixed(2);
-                            confetti({ particleCount: 300, spread: 150 });
+                            confetti({ particleCount: 400, spread: 160 });
                         }
                     }, 200);
                 } else {
