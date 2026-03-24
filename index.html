@@ -3,42 +3,216 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PokéPack Simulator - Pro Edition</title>
-    <link rel="stylesheet" href="style.css">
+    <title>PokéPack Simulator Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-</head>
-<body class="bg-[#0a0a0c] text-white overflow-x-hidden font-sans">
+    
+    <style>
+        /* CSS CHUYÊN DỤNG CHO HIỆU ỨNG LẬT BÀI */
+        body { background-color: #050507; color: white; overflow-x: hidden; }
 
-    <nav class="p-4 border-b border-white/10 flex justify-between items-center bg-[#0f0f12]">
-        <h1 class="text-xl font-black tracking-tighter text-yellow-500 italic">POKEPACK.IO CLONE</h1>
-        <select id="set-select" class="bg-black border border-white/20 rounded-lg px-3 py-1 text-sm font-bold outline-none">
-            <option value="sv6">Twilight Masquerade</option>
-            <option value="sv5">Temporal Forces</option>
-            <option value="sv1">Scarlet & Violet Base</option>
-        </select>
+        /* Khung chứa bài để tạo độ sâu 3D */
+        .card-slot {
+            perspective: 1000px;
+            height: 280px;
+            width: 200px;
+            cursor: pointer;
+            margin: auto;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-style: preserve-3d;
+        }
+
+        /* Trạng thái khi đã lật */
+        .is-flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 12px;
+            border: 2px solid #2d2d35;
+        }
+
+        /* Mặt sau huyền thoại của Pokemon */
+        .card-back {
+            background: #1a1a20 url('https://images.pokemontcg.io/sv1/back.png') no-repeat center/cover;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+        }
+
+        /* Mặt trước (Hình ảnh lá bài) */
+        .card-front {
+            transform: rotateY(180deg);
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Hiệu ứng lấp lánh cho lá hiếm (HITS) */
+        .hit-glow {
+            box-shadow: 0 0 25px rgba(234, 179, 8, 0.9);
+            border: 3px solid #facc15 !important;
+        }
+
+        /* Hiệu ứng rung khi khui bao bì */
+        @keyframes pack-shake {
+            0% { transform: translate(0,0); }
+            25% { transform: translate(-4px, 2px) rotate(-1deg); }
+            50% { transform: translate(4px, -2px) rotate(1deg); }
+            75% { transform: translate(-4px, -2px) rotate(-1deg); }
+            100% { transform: translate(0,0); }
+        }
+        .shaking { animation: pack-shake 0.12s infinite; }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <nav class="p-4 border-b border-white/5 flex justify-between items-center bg-[#0a0a0f] sticky top-0 z-50">
+        <h1 class="text-xl font-black text-yellow-500 italic tracking-tighter uppercase">PokéPack Clone</h1>
+        <div class="flex gap-4 items-center">
+            <select id="set-select" class="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm font-bold outline-none focus:ring-2 ring-yellow-500">
+                <option value="sv6">Twilight Masquerade</option>
+                <option value="sv5">Temporal Forces</option>
+                <option value="sv4pt5">Paldean Fates</option>
+                <option value="sv1">Scarlet & Violet Base</option>
+                <option value="swsh12">Silver Tempest</option>
+            </select>
+        </div>
     </nav>
 
-    <main class="flex flex-col items-center justify-center min-h-[80vh] relative">
+    <main class="flex flex-col items-center justify-center min-h-[85vh] p-6">
         
-        <div id="start-screen" class="z-50 text-center">
-            <div id="pack-visual" class="w-64 h-96 bg-blue-900 rounded-2xl mb-6 shadow-2xl border-4 border-blue-400 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform">
-                <span class="font-black text-2xl rotate-90 opacity-20">POKEMON TCG</span>
+        <div id="pack-wrapper" class="text-center transition-all duration-500">
+            <div id="pack-art" class="w-64 h-96 bg-gradient-to-b from-blue-600 to-blue-950 rounded-2xl mb-10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)] border-4 border-blue-400/50 flex items-center justify-center mx-auto transition-transform hover:scale-105 cursor-pointer relative overflow-hidden">
+                <div class="absolute inset-0 bg-white/5 opacity-20 pointer-events-none"></div>
+                <span class="font-black text-4xl opacity-10 rotate-90 tracking-[0.5em] select-none">POKEMON</span>
             </div>
-            <button id="btn-open-pack" class="bg-yellow-500 text-black font-black px-12 py-4 rounded-full text-xl hover:bg-yellow-400 transition-all shadow-xl">MỞ PACK</button>
+            <button id="btn-trigger" class="bg-yellow-500 hover:bg-yellow-400 text-black font-black px-14 py-5 rounded-full text-2xl transition-all active:scale-90 shadow-xl shadow-yellow-950/20">MỞ PACK</button>
         </div>
 
-        <div id="card-table" class="hidden grid grid-cols-2 md:grid-cols-5 gap-4 p-4 max-w-6xl w-full">
+        <div id="tabletop" class="hidden grid grid-cols-2 md:grid-cols-5 gap-8 max-w-7xl w-full py-10">
             </div>
 
     </main>
 
-    <div id="summary-overlay" class="hidden fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center backdrop-blur-md">
-        <h2 class="text-green-400 text-6xl font-black mb-2" id="total-val">$0.00</h2>
-        <p class="text-gray-500 mb-8 uppercase tracking-widest text-sm">Tổng giá trị thu thập</p>
-        <button onclick="location.reload()" class="bg-white text-black font-bold px-10 py-3 rounded-full">MỞ PACK KHÁC</button>
+    <div id="result-overlay" class="hidden fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center backdrop-blur-2xl p-6">
+        <span class="text-zinc-500 uppercase tracking-[0.3em] text-sm font-bold">Giá trị gói bài</span>
+        <h2 id="total-price-display" class="text-7xl md:text-9xl font-black text-green-400 my-6 font-mono tracking-tighter">$0.00</h2>
+        <button onclick="location.reload()" class="bg-white text-black font-black px-16 py-5 rounded-full text-xl hover:bg-zinc-200 transition-all uppercase tracking-widest">Lấy Pack mới</button>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        const btnTrigger = document.getElementById('btn-trigger');
+        const packArt = document.getElementById('pack-art');
+        const tabletop = document.getElementById('tabletop');
+        const packWrapper = document.getElementById('pack-wrapper');
+        const setSelect = document.getElementById('set-select');
+        
+        let flippedCount = 0;
+        let runningTotal = 0;
+
+        // Hàm lấy bài từ API (Tối ưu hóa tốc độ)
+        async function fetchCardData(setId, rarity) {
+            try {
+                const url = `https://api.pokemontcg.io/v2/cards?q=set.id:${setId} rarity:"${rarity}"&pageSize=20`;
+                const response = await fetch(url);
+                const result = await response.json();
+                if(result.data && result.data.length > 0) {
+                    return result.data[Math.floor(Math.random() * result.data.length)];
+                }
+                return null;
+            } catch (err) {
+                return null;
+            }
+        }
+
+        btnTrigger.onclick = async () => {
+            const currentSet = setSelect.value;
+            
+            // 1. Trạng thái chờ
+            btnTrigger.disabled = true;
+            btnTrigger.innerText = "ĐANG XÉ...";
+            packArt.classList.add('shaking');
+
+            // 2. Chuẩn bị 10 lá bài (Song song để nhanh nhất)
+            const cardRequests = [];
+            for (let i = 0; i < 9; i++) {
+                cardRequests.push(fetchCardData(currentSet, Math.random() > 0.4 ? 'Common' : 'Uncommon'));
+            }
+            // Đảm bảo 1 lá Rare/Ultra Rare cho mỗi pack
+            cardRequests.push(fetchCardData(currentSet, 'Ultra Rare'));
+
+            const cards = await Promise.all(cardRequests);
+
+            // 3. Chuyển cảnh từ Bao bì sang Bàn bài
+            packWrapper.classList.add('hidden');
+            tabletop.classList.remove('hidden');
+            tabletop.innerHTML = '';
+            flippedCount = 0;
+            runningTotal = 0;
+
+            cards.forEach((card) => {
+                if (!card) return;
+
+                // Tính toán giá trị
+                const marketPrice = card.tcgplayer?.prices?.holofoil?.market || 
+                                    card.tcgplayer?.prices?.normal?.market || 0.15;
+                runningTotal += marketPrice;
+
+                // Tạo giao diện lá bài
+                const slot = document.createElement('div');
+                slot.className = 'card-slot';
+                
+                const isRare = card.rarity.includes('Rare') || card.rarity.includes('Special');
+
+                slot.innerHTML = `
+                    <div class="card-inner">
+                        <div class="card-back"></div>
+                        <div class="card-front ${isRare ? 'hit-glow' : ''}">
+                            <img src="${card.images.small}" class="w-full h-full object-contain rounded-lg" draggable="false">
+                        </div>
+                    </div>`;
+
+                // Sự kiện lật bài
+                slot.onclick = function() {
+                    if (!this.classList.contains('is-flipped')) {
+                        this.classList.add('is-flipped');
+                        flippedCount++;
+
+                        // Hiệu ứng pháo hoa khi lật trúng bài xịn
+                        if (isRare) {
+                            confetti({
+                                particleCount: 80,
+                                spread: 70,
+                                origin: { y: 0.7 },
+                                colors: ['#FFD700', '#FFFFFF', '#40E0D0']
+                            });
+                        }
+
+                        // Kiểm tra nếu đã lật hết 10 lá
+                        if (flippedCount === 10) {
+                            setTimeout(() => {
+                                document.getElementById('result-overlay').classList.remove('hidden');
+                                document.getElementById('total-price-display').innerText = "$" + runningTotal.toFixed(2);
+                                confetti({ particleCount: 250, spread: 160 });
+                            }, 1500);
+                        }
+                    }
+                };
+                tabletop.appendChild(slot);
+            });
+        };
+    </script>
 </body>
 </html>
