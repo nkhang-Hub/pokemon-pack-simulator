@@ -3,193 +3,287 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pokémon TCG - Freestyle Opening</title>
+    <title>Pokémon TCG Pro Simulator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
     <style>
-        body { background: #020617; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .pack-container { perspective: 2000px; position: relative; height: 500px; width: 340px; margin: 0 auto; }
+        :root {
+            --card-width: 320px;
+            --card-height: 450px;
+        }
+
+        body {
+            background: #020617;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Vùng chứa các lá bài chồng lên nhau */
+        .pack-viewport {
+            perspective: 1000px;
+            position: relative;
+            width: var(--card-width);
+            height: var(--card-height);
+            margin-top: 2rem;
+        }
+
         .tcg-card {
-            position: absolute; width: 100%; height: 100%;
-            cursor: grab; touch-action: none; user-select: none;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+            touch-action: none;
             will-change: transform;
+            user-select: none;
         }
-        .card-inner {
-            width: 100%; height: 100%; border-radius: 20px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
-            border: 4px solid #1e293b; background: #000; overflow: hidden;
+
+        .card-face {
+            width: 100%;
+            height: 100%;
+            border-radius: 20px;
+            border: 4px solid #1e293b;
+            background: #000;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
         }
-        #result-screen {
-            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95);
-            z-index: 100; flex-direction: column; align-items: center; 
-            padding: 40px 20px; overflow-y: auto; backdrop-filter: blur(15px);
+
+        /* Hiệu ứng hào quang cho các thẻ hiếm */
+        .glow-ace { border-color: #ef4444; box-shadow: 0 0 25px #ef4444; border-style: dashed; }
+        .glow-ultra { border-color: #a855f7; box-shadow: 0 0 20px #a855f7; }
+        .glow-illustration { border-color: #eab308; box-shadow: 0 0 20px #eab308; }
+
+        /* Màn hình kết quả mờ ảo */
+        #summary-screen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 100;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            backdrop-filter: blur(12px);
+            overflow-y: auto;
         }
-        .card-list-item { animation: slideUp 0.4s ease forwards; opacity: 0; }
-        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .list-item-anim {
+            animation: fadeInCard 0.4s ease forwards;
+            opacity: 0;
+        }
+
+        @keyframes fadeInCard {
+            from { transform: translateY(15px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
     </style>
 </head>
-<body class="text-white flex flex-col items-center min-h-screen">
+<body>
 
-    <div class="mt-8 text-center px-4">
-        <h1 class="text-3xl font-black text-blue-500 tracking-widest uppercase">Pack Simulator</h1>
-        <p class="text-gray-500 text-xs mt-1 italic">Hất thẻ theo bất kỳ hướng nào để khám phá</p>
-    </div>
+    <header class="pt-8 text-center">
+        <h1 class="text-2xl font-black tracking-tighter text-blue-500 uppercase">TCG Pack Simulator</h1>
+    </header>
 
-    <div class="mt-10 flex flex-col items-center gap-8">
-        <button id="btn-open" class="bg-blue-700 hover:bg-blue-600 px-12 py-4 rounded-2xl font-bold text-lg shadow-xl border-b-4 border-blue-900 active:border-b-0 active:translate-y-1 transition-all">
-            LẤY PACK MỚI
-        </button>
-
-        <div id="pack-area" class="pack-container">
-            </div>
-    </div>
-
-    <div id="result-screen">
-        <h2 class="text-yellow-500 font-bold text-xl mb-2">TỔNG GIÁ TRỊ PACK</h2>
-        <div id="final-total" class="text-6xl font-black mb-8 text-green-400 font-mono tracking-tighter">$0.00</div>
+    <div class="mt-6 flex flex-col gap-4 w-full max-w-xs z-50 px-4">
+        <select id="set-picker" class="bg-gray-900 border border-gray-700 text-white rounded-xl p-3 font-bold outline-none">
+            <option value="sv6">Twilight Masquerade (Mới)</option>
+            <option value="sv5">Temporal Forces</option>
+            <option value="sv4pt5">Paldean Fates</option>
+            <option value="sv3">Obsidian Flames</option>
+            <option value="sv1">Scarlet & Violet Base</option>
+            <option value="swsh12">Silver Tempest</option>
+            <option value="swsh11">Lost Origin</option>
+        </select>
         
-        <div class="w-full max-w-md space-y-3 mb-10" id="card-history">
-            </div>
-
-        <button onclick="location.reload()" class="bg-white text-black font-bold px-10 py-3 rounded-xl hover:bg-gray-200 transition-colors">
-            THỬ LẠI
+        <button id="btn-generate" class="bg-blue-600 hover:bg-blue-500 py-3 rounded-xl font-black transition-all active:scale-95 shadow-lg">
+            MỞ PACK NGAY
         </button>
+    </div>
+
+    <div id="deck-container" class="pack-viewport">
+        <div class="h-full w-full flex items-center justify-center text-gray-700 border-2 border-dashed border-gray-800 rounded-3xl text-center p-8">
+            Hãy chọn một bộ và nhấn Mở Pack
+        </div>
+    </div>
+
+    <div id="summary-screen">
+        <div class="max-w-sm w-full text-center">
+            <p class="text-gray-500 text-xs tracking-widest uppercase font-bold">Pack Value</p>
+            <div id="total-price-text" class="text-6xl font-black text-green-400 my-4 font-mono">$0.00</div>
+            
+            <div id="history-list" class="space-y-2 mb-8 text-left max-h-[400px] overflow-y-auto pr-2">
+                </div>
+
+            <button onclick="resetApp()" class="w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-gray-200 transition-all">
+                MỞ THÊM GÓI KHÁC
+            </button>
+        </div>
     </div>
 
     <script>
-        const packArea = document.getElementById('pack-area');
-        const btnOpen = document.getElementById('btn-open');
-        const resultScreen = document.getElementById('result-screen');
-        const historyContainer = document.getElementById('card-history');
-        const finalTotalEl = document.getElementById('final-total');
+        const setPicker = document.getElementById('set-picker');
+        const btnGenerate = document.getElementById('btn-generate');
+        const deckContainer = document.getElementById('deck-container');
+        const summaryScreen = document.getElementById('summary-screen');
+        const historyList = document.getElementById('history-list');
+        const totalPriceText = document.getElementById('total-price-text');
 
-        let openedCards = [];
-        let cardsLeft = 0;
-        let totalVal = 0;
+        let currentCards = [];
+        let cardsRemaining = 0;
+        let runningValue = 0;
 
-        const CHANCES = { 'ACE SPEC Rare': 0.05, 'Ultra Rare': 0.07, 'Illustration Rare': 0.08, 'Double Rare': 0.17 };
+        // Tỷ lệ mở pack bạn đã cung cấp
+        const DROP_RATES = {
+            'ACE SPEC Rare': 0.0503,
+            'Ultra Rare': 0.0674,
+            'Illustration Rare': 0.0767,
+            'Double Rare': 0.1694
+        };
 
-        async function fetchCard(rarity) {
+        // Lấy dữ liệu thẻ từ API
+        async function getCard(setId, rarity) {
             try {
-                const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=set.id:sv1 rarity:"${rarity}"&pageSize=40`);
+                const url = `https://api.pokemontcg.io/v2/cards?q=set.id:${setId} rarity:"${rarity}"&pageSize=40`;
+                const res = await fetch(url);
                 const data = await res.json();
-                return data.data[Math.floor(Math.random() * data.data.length)];
-            } catch { return null; }
+                return data.data[Math.floor(Math.random() * data.data.length)] || null;
+            } catch (e) { return null; }
         }
 
-        async function initPack() {
-            btnOpen.disabled = true;
-            btnOpen.innerText = "ĐANG TẢI...";
-            packArea.innerHTML = '';
-            openedCards = [];
-            totalVal = 0;
-            cardsLeft = 10;
-
-            const promises = [];
-            for(let i=0; i<9; i++) promises.push(fetchCard(Math.random() > 0.4 ? 'Common' : 'Uncommon'));
+        // Logic chính khi nhấn nút
+        async function startOpening() {
+            const setId = setPicker.value;
+            btnGenerate.disabled = true;
+            btnGenerate.innerText = "ĐANG CHUẨN BỊ...";
             
+            deckContainer.innerHTML = '';
+            historyList.innerHTML = '';
+            currentCards = [];
+            runningValue = 0;
+            cardsRemaining = 10;
+
+            const cardRequests = [];
+            // 9 lá đầu (Common/Uncommon)
+            for(let i=0; i<9; i++) {
+                cardRequests.push(getCard(setId, Math.random() > 0.4 ? 'Common' : 'Uncommon'));
+            }
+            
+            // Lá thứ 10 (Hiếm)
             let roll = Math.random();
             let r = 'Rare';
-            if (roll < CHANCES['ACE SPEC Rare']) r = 'ACE SPEC Rare';
-            else if (roll < CHANCES['Ultra Rare']) r = 'Ultra Rare';
-            else if (roll < CHANCES['Illustration Rare']) r = 'Illustration Rare';
-            else if (roll < CHANCES['Double Rare']) r = 'Double Rare';
-            promises.push(fetchCard(r));
+            if (roll < DROP_RATES['ACE SPEC Rare']) r = 'ACE SPEC Rare';
+            else if (roll < DROP_RATES['Ultra Rare']) r = 'Ultra Rare';
+            else if (roll < DROP_RATES['Illustration Rare']) r = 'Illustration Rare';
+            else if (roll < DROP_RATES['Double Rare']) r = 'Double Rare';
+            cardRequests.push(getCard(setId, r));
 
-            const results = await Promise.all(promises);
-            results.forEach((card, i) => {
-                if(!card) return;
-                const price = card.tcgplayer?.prices?.holofoil?.market || card.tcgplayer?.prices?.normal?.market || 0.10;
-                openedCards.push({ name: card.name, price, rarity: card.rarity });
-                totalVal += price;
-                renderCard(card, i);
+            const results = await Promise.all(cardRequests);
+            
+            results.filter(c => c !== null).forEach((card, index) => {
+                const price = card.tcgplayer?.prices?.holofoil?.market || card.tcgplayer?.prices?.normal?.market || 0.15;
+                currentCards.push({ name: card.name, price, rarity: card.rarity });
+                runningValue += price;
+                renderCardUI(card, index);
             });
 
-            btnOpen.disabled = false;
-            btnOpen.innerText = "LẤY PACK MỚI";
+            btnGenerate.disabled = false;
+            btnGenerate.innerText = "MỞ PACK NGAY";
         }
 
-        function renderCard(card, index) {
-            const div = document.createElement('div');
-            div.className = 'tcg-card';
-            div.style.zIndex = index;
-            div.innerHTML = `<div class="card-inner"><img src="${card.images.large}" class="w-full h-full object-cover pointer-events-none"></div>`;
+        function renderCardUI(card, index) {
+            const el = document.createElement('div');
+            el.className = 'tcg-card';
+            el.style.zIndex = index;
             
-            setupFreestyleDrag(div, card.rarity);
-            packArea.appendChild(div);
+            let glowClass = "";
+            if (card.rarity.includes("ACE")) glowClass = "glow-ace";
+            else if (card.rarity.includes("Ultra")) glowClass = "glow-ultra";
+            else if (card.rarity.includes("Illustration")) glowClass = "glow-illustration";
+
+            el.innerHTML = `
+                <div class="card-face ${glowClass}">
+                    <img src="${card.images.large}" class="w-full h-full object-cover">
+                </div>
+            `;
+            
+            applyDragLogic(el, card.rarity);
+            deckContainer.appendChild(el);
         }
 
-        function setupFreestyleDrag(el, rarity) {
-            let startX, startY, moveX, moveY;
+        // Xử lý kéo bài 360 độ
+        function applyDragLogic(cardEl, rarity) {
+            let startX, startY, x = 0, y = 0;
 
-            const start = (e) => {
-                const pos = e.touches ? e.touches[0] : e;
-                startX = pos.clientX;
-                startY = pos.clientY;
-                el.style.transition = 'none';
-                document.addEventListener('mousemove', move);
-                document.addEventListener('mouseup', end);
-                document.addEventListener('touchmove', move);
-                document.addEventListener('touchend', end);
+            const onMove = (e) => {
+                const p = e.touches ? e.touches[0] : e;
+                x = p.clientX - startX;
+                y = p.clientY - startY;
+                cardEl.style.transform = `translate(${x}px, ${y}px) rotate(${x/15}deg)`;
             };
 
-            const move = (e) => {
-                const pos = e.touches ? e.touches[0] : e;
-                moveX = pos.clientX - startX;
-                moveY = pos.clientY - startY;
-                const rotate = moveX / 10;
-                el.style.transform = `translate(${moveX}px, ${moveY}px) rotate(${rotate}deg)`;
-            };
+            const onEnd = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onEnd);
+                document.removeEventListener('touchmove', onMove);
+                document.removeEventListener('touchend', onEnd);
 
-            const end = () => {
-                document.removeEventListener('mousemove', move);
-                document.removeEventListener('mouseup', end);
-                document.removeEventListener('touchmove', move);
-                document.removeEventListener('touchend', end);
-
-                // Nếu kéo đủ xa theo bất kỳ hướng nào (X hoặc Y)
-                if (Math.abs(moveX) > 130 || Math.abs(moveY) > 130) {
-                    const angle = Math.atan2(moveY, moveX);
-                    const velocity = 1500;
-                    const endX = Math.cos(angle) * velocity;
-                    const endY = Math.sin(angle) * velocity;
-
-                    el.style.transition = 'transform 0.6s cubic-bezier(0.2, 0.5, 0.2, 1)';
-                    el.style.transform = `translate(${endX}px, ${endY}px) rotate(${endX/10}deg)`;
+                if (Math.abs(x) > 130 || Math.abs(y) > 130) {
+                    const angle = Math.atan2(y, x);
+                    const force = 1200;
+                    cardEl.style.transition = 'transform 0.6s cubic-bezier(0.2, 0.5, 0.2, 1)';
+                    cardEl.style.transform = `translate(${Math.cos(angle)*force}px, ${Math.sin(angle)*force}px) rotate(${x/5}deg)`;
                     
                     if(rarity.includes('Rare') || rarity.includes('ACE')) {
-                        confetti({ particleCount: 40, spread: 50, origin: { y: 0.8 } });
+                        confetti({ particleCount: 30, spread: 50, origin: { y: 0.8 } });
                     }
 
                     setTimeout(() => {
-                        el.remove();
-                        cardsLeft--;
-                        if(cardsLeft === 0) finish();
+                        cardEl.remove();
+                        cardsRemaining--;
+                        if(cardsRemaining === 0) finishPack();
                     }, 400);
                 } else {
-                    el.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-                    el.style.transform = 'translate(0,0) rotate(0deg)';
+                    cardEl.style.transition = 'transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
+                    cardEl.style.transform = 'translate(0,0) rotate(0deg)';
                 }
             };
 
-            el.addEventListener('mousedown', start);
-            el.addEventListener('touchstart', start);
+            cardEl.addEventListener('mousedown', (e) => {
+                startX = e.clientX; startY = e.clientY;
+                cardEl.style.transition = 'none';
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onEnd);
+            });
+
+            cardEl.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+                cardEl.style.transition = 'none';
+                document.addEventListener('touchmove', onMove);
+                document.addEventListener('touchend', onEnd);
+            });
         }
 
-        function finish() {
-            finalTotalEl.innerText = `$${totalVal.toFixed(2)}`;
-            historyContainer.innerHTML = openedCards.map((c, i) => `
-                <div class="card-list-item flex justify-between bg-gray-900 p-3 rounded-lg border-l-4 ${c.rarity.includes('Rare') ? 'border-yellow-500' : 'border-blue-500'}" style="animation-delay: ${i*0.1}s">
-                    <span class="text-sm font-medium">${c.name}</span>
-                    <span class="font-mono text-green-400 font-bold">$${c.price.toFixed(2)}</span>
+        function finishPack() {
+            totalPriceText.innerText = `$${runningValue.toFixed(2)}`;
+            historyList.innerHTML = currentCards.reverse().map((c, i) => `
+                <div class="list-item-anim flex justify-between p-3 bg-gray-900 rounded-lg border-l-4 ${c.rarity.includes('Rare') ? 'border-yellow-500' : 'border-blue-500'}" style="animation-delay: ${i*0.08}s">
+                    <span class="text-xs font-bold truncate pr-2">${c.name}</span>
+                    <span class="text-green-400 font-mono font-bold">$${c.price.toFixed(2)}</span>
                 </div>
             `).join('');
             
-            resultScreen.style.display = 'flex';
+            summaryScreen.style.display = 'flex';
             confetti({ particleCount: 150, spread: 70, origin: { y: 0.5 } });
         }
 
-        btnOpen.addEventListener('click', initPack);
+        function resetApp() { summaryScreen.style.display = 'none'; }
+
+        btnGenerate.addEventListener('click', startOpening);
     </script>
 </body>
 </html>
