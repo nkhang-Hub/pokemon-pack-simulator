@@ -3,216 +3,202 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PokéPack Simulator Pro</title>
+    <title>PokéPack Fast Swipe</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
     <style>
-        /* CSS CHUYÊN DỤNG CHO HIỆU ỨNG LẬT BÀI */
-        body { background-color: #050507; color: white; overflow-x: hidden; }
-
-        /* Khung chứa bài để tạo độ sâu 3D */
-        .card-slot {
-            perspective: 1000px;
-            height: 280px;
-            width: 200px;
-            cursor: pointer;
-            margin: auto;
-        }
-
-        .card-inner {
+        body { background: #050507; color: white; overflow: hidden; height: 100vh; font-family: sans-serif; }
+        
+        /* Xấp bài xếp chồng */
+        .pack-container {
             position: relative;
-            width: 100%;
-            height: 100%;
-            transition: transform 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            transform-style: preserve-3d;
+            width: 310px;
+            height: 430px;
+            perspective: 1000px;
+            margin-top: 20px;
         }
 
-        /* Trạng thái khi đã lật */
-        .is-flipped .card-inner {
-            transform: rotateY(180deg);
-        }
-
-        .card-front, .card-back {
+        .tcg-card {
             position: absolute;
             width: 100%;
             height: 100%;
-            backface-visibility: hidden;
-            border-radius: 12px;
-            border: 2px solid #2d2d35;
+            cursor: grab;
+            touch-action: none;
+            will-change: transform;
+            transition: transform 0.1s ease-out;
+            user-select: none;
         }
 
-        /* Mặt sau huyền thoại của Pokemon */
-        .card-back {
-            background: #1a1a20 url('https://images.pokemontcg.io/sv1/back.png') no-repeat center/cover;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-        }
-
-        /* Mặt trước (Hình ảnh lá bài) */
-        .card-front {
-            transform: rotateY(180deg);
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            border-radius: 16px;
+            border: 3px solid #1e293b;
             background: #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.9);
         }
 
-        /* Hiệu ứng lấp lánh cho lá hiếm (HITS) */
-        .hit-glow {
-            box-shadow: 0 0 25px rgba(234, 179, 8, 0.9);
-            border: 3px solid #facc15 !important;
-        }
-
-        /* Hiệu ứng rung khi khui bao bì */
-        @keyframes pack-shake {
-            0% { transform: translate(0,0); }
-            25% { transform: translate(-4px, 2px) rotate(-1deg); }
-            50% { transform: translate(4px, -2px) rotate(1deg); }
-            75% { transform: translate(-4px, -2px) rotate(-1deg); }
-            100% { transform: translate(0,0); }
-        }
-        .shaking { animation: pack-shake 0.12s infinite; }
+        /* Hiệu ứng thẻ hiếm */
+        .rare-hit { border-color: #facc15; box-shadow: 0 0 30px rgba(234, 179, 8, 0.5); }
         
         .hidden { display: none !important; }
+
+        /* Animation cho nút mở */
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
+            100% { transform: scale(1); }
+        }
+        .btn-pulse { animation: pulse 2s infinite; }
     </style>
 </head>
-<body>
+<body class="flex flex-col items-center">
 
-    <nav class="p-4 border-b border-white/5 flex justify-between items-center bg-[#0a0a0f] sticky top-0 z-50">
-        <h1 class="text-xl font-black text-yellow-500 italic tracking-tighter uppercase">PokéPack Clone</h1>
-        <div class="flex gap-4 items-center">
-            <select id="set-select" class="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm font-bold outline-none focus:ring-2 ring-yellow-500">
-                <option value="sv6">Twilight Masquerade</option>
-                <option value="sv5">Temporal Forces</option>
-                <option value="sv4pt5">Paldean Fates</option>
-                <option value="sv1">Scarlet & Violet Base</option>
-                <option value="swsh12">Silver Tempest</option>
-            </select>
-        </div>
+    <nav class="w-full p-4 border-b border-white/5 flex justify-between items-center bg-[#0a0a0f] z-50">
+        <h1 class="text-xl font-black text-blue-500 italic uppercase tracking-tighter">FastPack <span class="text-white text-xs bg-red-600 px-1 rounded ml-1">1s</span></h1>
+        <select id="set-select" class="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1 text-sm outline-none font-bold">
+            <option value="sv6">Twilight Masquerade</option>
+            <option value="sv5">Temporal Forces</option>
+            <option value="sv1">Scarlet & Violet Base</option>
+        </select>
     </nav>
 
-    <main class="flex flex-col items-center justify-center min-h-[85vh] p-6">
-        
-        <div id="pack-wrapper" class="text-center transition-all duration-500">
-            <div id="pack-art" class="w-64 h-96 bg-gradient-to-b from-blue-600 to-blue-950 rounded-2xl mb-10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)] border-4 border-blue-400/50 flex items-center justify-center mx-auto transition-transform hover:scale-105 cursor-pointer relative overflow-hidden">
-                <div class="absolute inset-0 bg-white/5 opacity-20 pointer-events-none"></div>
-                <span class="font-black text-4xl opacity-10 rotate-90 tracking-[0.5em] select-none">POKEMON</span>
-            </div>
-            <button id="btn-trigger" class="bg-yellow-500 hover:bg-yellow-400 text-black font-black px-14 py-5 rounded-full text-2xl transition-all active:scale-90 shadow-xl shadow-yellow-950/20">MỞ PACK</button>
+    <div id="ui-controls" class="mt-12 mb-8 z-50 transition-all duration-300">
+        <button id="btn-open" class="btn-pulse bg-blue-600 hover:bg-blue-500 text-white font-black px-16 py-4 rounded-full shadow-2xl transition-all active:scale-90 text-lg">MỞ GÓI (1S)</button>
+    </div>
+
+    <div id="pack-zone" class="pack-container">
+        <div id="placeholder" class="absolute inset-0 bg-gradient-to-br from-blue-900 to-black rounded-2xl border-4 border-blue-500/30 flex items-center justify-center opacity-50">
+            <p class="text-blue-400 font-bold italic">READY TO RIP</p>
         </div>
+    </div>
 
-        <div id="tabletop" class="hidden grid grid-cols-2 md:grid-cols-5 gap-8 max-w-7xl w-full py-10">
-            </div>
-
-    </main>
-
-    <div id="result-overlay" class="hidden fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center backdrop-blur-2xl p-6">
-        <span class="text-zinc-500 uppercase tracking-[0.3em] text-sm font-bold">Giá trị gói bài</span>
-        <h2 id="total-price-display" class="text-7xl md:text-9xl font-black text-green-400 my-6 font-mono tracking-tighter">$0.00</h2>
-        <button onclick="location.reload()" class="bg-white text-black font-black px-16 py-5 rounded-full text-xl hover:bg-zinc-200 transition-all uppercase tracking-widest">Lấy Pack mới</button>
+    <div id="summary" class="hidden fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center backdrop-blur-2xl">
+        <p class="text-zinc-500 uppercase tracking-widest text-xs mb-2">Total Value</p>
+        <h2 id="total-price" class="text-8xl font-black text-green-400 font-mono mb-10 tracking-tighter">$0.00</h2>
+        <button onclick="location.reload()" class="bg-white text-black font-black px-14 py-4 rounded-full uppercase hover:bg-zinc-200 transition-all active:scale-95">Mở Pack Khác</button>
     </div>
 
     <script>
-        const btnTrigger = document.getElementById('btn-trigger');
-        const packArt = document.getElementById('pack-art');
-        const tabletop = document.getElementById('tabletop');
-        const packWrapper = document.getElementById('pack-wrapper');
+        const btnOpen = document.getElementById('btn-open');
+        const packZone = document.getElementById('pack-zone');
         const setSelect = document.getElementById('set-select');
+        const uiControls = document.getElementById('ui-controls');
         
-        let flippedCount = 0;
-        let runningTotal = 0;
+        let cardsLeft = 0;
+        let totalPrice = 0;
 
-        // Hàm lấy bài từ API (Tối ưu hóa tốc độ)
-        async function fetchCardData(setId, rarity) {
+        // Hàm gọi API siêu tốc
+        async function getCard(setId, rarity) {
             try {
-                const url = `https://api.pokemontcg.io/v2/cards?q=set.id:${setId} rarity:"${rarity}"&pageSize=20`;
-                const response = await fetch(url);
-                const result = await response.json();
-                if(result.data && result.data.length > 0) {
-                    return result.data[Math.floor(Math.random() * result.data.length)];
-                }
-                return null;
-            } catch (err) {
-                return null;
-            }
+                const r = await fetch(`https://api.pokemontcg.io/v2/cards?q=set.id:${setId} rarity:"${rarity}"&pageSize=15`);
+                const d = await r.json();
+                return d.data[Math.floor(Math.random() * d.data.length)];
+            } catch { return null; }
         }
 
-        btnTrigger.onclick = async () => {
-            const currentSet = setSelect.value;
+        btnOpen.onclick = async () => {
+            const setId = setSelect.value;
             
-            // 1. Trạng thái chờ
-            btnTrigger.disabled = true;
-            btnTrigger.innerText = "ĐANG XÉ...";
-            packArt.classList.add('shaking');
+            // UI phản hồi ngay lập tức
+            btnOpen.disabled = true;
+            btnOpen.innerText = "OPENING...";
+            uiControls.style.opacity = "0.3";
 
-            // 2. Chuẩn bị 10 lá bài (Song song để nhanh nhất)
-            const cardRequests = [];
-            for (let i = 0; i < 9; i++) {
-                cardRequests.push(fetchCardData(currentSet, Math.random() > 0.4 ? 'Common' : 'Uncommon'));
-            }
-            // Đảm bảo 1 lá Rare/Ultra Rare cho mỗi pack
-            cardRequests.push(fetchCardData(currentSet, 'Ultra Rare'));
+            // Bước nhảy vọt: Tải song song 10 lá
+            const cardTasks = [];
+            for(let i=0; i<9; i++) cardTasks.push(getCard(setId, Math.random() > 0.4 ? 'Common' : 'Uncommon'));
+            cardTasks.push(getCard(setId, 'Ultra Rare')); // Lá hiếm chốt hạ
 
-            const cards = await Promise.all(cardRequests);
+            const cards = await Promise.all(cardTasks);
+            
+            // Xóa placeholder và ẩn nút để tập trung vào bài
+            packZone.innerHTML = '';
+            uiControls.classList.add('hidden');
+            totalPrice = 0;
+            cardsLeft = 10;
 
-            // 3. Chuyển cảnh từ Bao bì sang Bàn bài
-            packWrapper.classList.add('hidden');
-            tabletop.classList.remove('hidden');
-            tabletop.innerHTML = '';
-            flippedCount = 0;
-            runningTotal = 0;
+            // Card Trick: Để lá Rare ở vị trí thứ 2 (để khi rút gần hết mới thấy)
+            const rareCard = cards.pop();
+            cards.splice(1, 0, rareCard);
 
-            cards.forEach((card) => {
-                if (!card) return;
-
-                // Tính toán giá trị
-                const marketPrice = card.tcgplayer?.prices?.holofoil?.market || 
-                                    card.tcgplayer?.prices?.normal?.market || 0.15;
-                runningTotal += marketPrice;
-
-                // Tạo giao diện lá bài
-                const slot = document.createElement('div');
-                slot.className = 'card-slot';
-                
-                const isRare = card.rarity.includes('Rare') || card.rarity.includes('Special');
-
-                slot.innerHTML = `
-                    <div class="card-inner">
-                        <div class="card-back"></div>
-                        <div class="card-front ${isRare ? 'hit-glow' : ''}">
-                            <img src="${card.images.small}" class="w-full h-full object-contain rounded-lg" draggable="false">
-                        </div>
-                    </div>`;
-
-                // Sự kiện lật bài
-                slot.onclick = function() {
-                    if (!this.classList.contains('is-flipped')) {
-                        this.classList.add('is-flipped');
-                        flippedCount++;
-
-                        // Hiệu ứng pháo hoa khi lật trúng bài xịn
-                        if (isRare) {
-                            confetti({
-                                particleCount: 80,
-                                spread: 70,
-                                origin: { y: 0.7 },
-                                colors: ['#FFD700', '#FFFFFF', '#40E0D0']
-                            });
-                        }
-
-                        // Kiểm tra nếu đã lật hết 10 lá
-                        if (flippedCount === 10) {
-                            setTimeout(() => {
-                                document.getElementById('result-overlay').classList.remove('hidden');
-                                document.getElementById('total-price-display').innerText = "$" + runningTotal.toFixed(2);
-                                confetti({ particleCount: 250, spread: 160 });
-                            }, 1500);
-                        }
-                    }
-                };
-                tabletop.appendChild(slot);
+            // Render xấp bài ngay lập tức
+            cards.reverse().forEach((card, index) => {
+                if(!card) return;
+                const price = card.tcgplayer?.prices?.holofoil?.market || card.tcgplayer?.prices?.normal?.market || 0.15;
+                totalPrice += price;
+                renderCard(card, index);
             });
         };
+
+        function renderCard(card, index) {
+            const el = document.createElement('div');
+            el.className = 'tcg-card';
+            el.style.zIndex = index;
+            
+            const isRare = card.rarity.includes('Rare');
+
+            el.innerHTML = `
+                <div class="card-inner ${isRare ? 'rare-hit' : ''}">
+                    <img src="${card.images.large}" class="w-full h-full object-cover" draggable="false" loading="eager">
+                </div>`;
+            
+            initSwipe(el, isRare);
+            packZone.appendChild(el);
+        }
+
+        function initSwipe(el, isRare) {
+            let startX, startY, x=0, y=0;
+
+            const onMove = (e) => {
+                const p = e.touches ? e.touches[0] : e;
+                x = p.clientX - startX;
+                y = p.clientY - startY;
+                // Hiệu ứng di chuyển mượt mà theo tay
+                el.style.transform = `translate(${x}px, ${y}px) rotate(${x/15}deg)`;
+            };
+
+            const onEnd = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onEnd);
+                document.removeEventListener('touchmove', onMove);
+                document.removeEventListener('touchend', onEnd);
+
+                // Ngưỡng rút bài: 100px là bay
+                if (Math.abs(x) > 100 || Math.abs(y) > 100) {
+                    const angle = Math.atan2(y, x);
+                    el.style.transition = 'transform 0.3s ease-in';
+                    el.style.transform = `translate(${Math.cos(angle)*1000}px, ${Math.sin(angle)*1000}px) rotate(${x/2}deg)`;
+                    
+                    if(isRare) confetti({ particleCount: 100, spread: 80, origin: { y: 0.8 } });
+
+                    setTimeout(() => {
+                        el.remove();
+                        cardsLeft--;
+                        if(cardsLeft === 0) {
+                            document.getElementById('summary').classList.remove('hidden');
+                            document.getElementById('total-price').innerText = "$" + totalPrice.toFixed(2);
+                            confetti({ particleCount: 300, spread: 150 });
+                        }
+                    }, 200);
+                } else {
+                    el.style.transition = 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                    el.style.transform = 'translate(0,0) rotate(0)';
+                }
+            };
+
+            const startAction = (e) => {
+                const p = e.touches ? e.touches[0] : e;
+                startX = p.clientX; startY = p.clientY;
+                el.style.transition = 'none';
+                document.addEventListener(e.touches ? 'touchmove' : 'mousemove', onMove);
+                document.addEventListener(e.touches ? 'touchend' : 'mouseup', onEnd);
+            };
+
+            el.addEventListener('mousedown', startAction);
+            el.addEventListener('touchstart', startAction);
+        }
     </script>
 </body>
 </html>
