@@ -3,287 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pokémon TCG Pro Simulator</title>
+    <title>PokePack HighSpeed Simulator</title>
+    <link rel="stylesheet" href="style.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
-    <style>
-        :root {
-            --card-width: 320px;
-            --card-height: 450px;
-        }
-
-        body {
-            background: #020617;
-            color: white;
-            font-family: 'Inter', sans-serif;
-            overflow: hidden;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        /* Vùng chứa các lá bài chồng lên nhau */
-        .pack-viewport {
-            perspective: 1000px;
-            position: relative;
-            width: var(--card-width);
-            height: var(--card-height);
-            margin-top: 2rem;
-        }
-
-        .tcg-card {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            cursor: grab;
-            touch-action: none;
-            will-change: transform;
-            user-select: none;
-        }
-
-        .card-face {
-            width: 100%;
-            height: 100%;
-            border-radius: 20px;
-            border: 4px solid #1e293b;
-            background: #000;
-            overflow: hidden;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-        }
-
-        /* Hiệu ứng hào quang cho các thẻ hiếm */
-        .glow-ace { border-color: #ef4444; box-shadow: 0 0 25px #ef4444; border-style: dashed; }
-        .glow-ultra { border-color: #a855f7; box-shadow: 0 0 20px #a855f7; }
-        .glow-illustration { border-color: #eab308; box-shadow: 0 0 20px #eab308; }
-
-        /* Màn hình kết quả mờ ảo */
-        #summary-screen {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.95);
-            z-index: 100;
-            flex-direction: column;
-            align-items: center;
-            padding: 2rem;
-            backdrop-filter: blur(12px);
-            overflow-y: auto;
-        }
-
-        .list-item-anim {
-            animation: fadeInCard 0.4s ease forwards;
-            opacity: 0;
-        }
-
-        @keyframes fadeInCard {
-            from { transform: translateY(15px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-    </style>
 </head>
-<body>
+<body class="text-white">
 
-    <header class="pt-8 text-center">
-        <h1 class="text-2xl font-black tracking-tighter text-blue-500 uppercase">TCG Pack Simulator</h1>
+    <header class="py-6">
+        <h1 class="text-2xl font-black text-center text-blue-500 italic uppercase tracking-tighter">Ultra Fast Pack Opener</h1>
     </header>
 
-    <div class="mt-6 flex flex-col gap-4 w-full max-w-xs z-50 px-4">
-        <select id="set-picker" class="bg-gray-900 border border-gray-700 text-white rounded-xl p-3 font-bold outline-none">
-            <option value="sv6">Twilight Masquerade (Mới)</option>
+    <div class="controls-container">
+        <select id="set-picker">
+            <option value="sv6">Twilight Masquerade</option>
             <option value="sv5">Temporal Forces</option>
             <option value="sv4pt5">Paldean Fates</option>
-            <option value="sv3">Obsidian Flames</option>
-            <option value="sv1">Scarlet & Violet Base</option>
             <option value="swsh12">Silver Tempest</option>
-            <option value="swsh11">Lost Origin</option>
         </select>
-        
-        <button id="btn-generate" class="bg-blue-600 hover:bg-blue-500 py-3 rounded-xl font-black transition-all active:scale-95 shadow-lg">
-            MỞ PACK NGAY
-        </button>
+        <button id="btn-open">MỞ PACK (QUICK)</button>
     </div>
 
     <div id="deck-container" class="pack-viewport">
-        <div class="h-full w-full flex items-center justify-center text-gray-700 border-2 border-dashed border-gray-800 rounded-3xl text-center p-8">
-            Hãy chọn một bộ và nhấn Mở Pack
-        </div>
+        <div class="placeholder-text">Chọn bộ và bấm mở để bắt đầu</div>
     </div>
 
     <div id="summary-screen">
-        <div class="max-w-sm w-full text-center">
-            <p class="text-gray-500 text-xs tracking-widest uppercase font-bold">Pack Value</p>
-            <div id="total-price-text" class="text-6xl font-black text-green-400 my-4 font-mono">$0.00</div>
-            
-            <div id="history-list" class="space-y-2 mb-8 text-left max-h-[400px] overflow-y-auto pr-2">
-                </div>
-
-            <button onclick="resetApp()" class="w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-gray-200 transition-all">
-                MỞ THÊM GÓI KHÁC
-            </button>
+        <div class="summary-content">
+            <p class="label">TỔNG GIÁ TRỊ</p>
+            <div id="total-price-text" class="price-big">$0.00</div>
+            <div id="history-list" class="history-grid"></div>
+            <button onclick="resetApp()" class="btn-reset">MỞ TIẾP TỤC</button>
         </div>
     </div>
 
-    <script>
-        const setPicker = document.getElementById('set-picker');
-        const btnGenerate = document.getElementById('btn-generate');
-        const deckContainer = document.getElementById('deck-container');
-        const summaryScreen = document.getElementById('summary-screen');
-        const historyList = document.getElementById('history-list');
-        const totalPriceText = document.getElementById('total-price-text');
-
-        let currentCards = [];
-        let cardsRemaining = 0;
-        let runningValue = 0;
-
-        // Tỷ lệ mở pack bạn đã cung cấp
-        const DROP_RATES = {
-            'ACE SPEC Rare': 0.0503,
-            'Ultra Rare': 0.0674,
-            'Illustration Rare': 0.0767,
-            'Double Rare': 0.1694
-        };
-
-        // Lấy dữ liệu thẻ từ API
-        async function getCard(setId, rarity) {
-            try {
-                const url = `https://api.pokemontcg.io/v2/cards?q=set.id:${setId} rarity:"${rarity}"&pageSize=40`;
-                const res = await fetch(url);
-                const data = await res.json();
-                return data.data[Math.floor(Math.random() * data.data.length)] || null;
-            } catch (e) { return null; }
-        }
-
-        // Logic chính khi nhấn nút
-        async function startOpening() {
-            const setId = setPicker.value;
-            btnGenerate.disabled = true;
-            btnGenerate.innerText = "ĐANG CHUẨN BỊ...";
-            
-            deckContainer.innerHTML = '';
-            historyList.innerHTML = '';
-            currentCards = [];
-            runningValue = 0;
-            cardsRemaining = 10;
-
-            const cardRequests = [];
-            // 9 lá đầu (Common/Uncommon)
-            for(let i=0; i<9; i++) {
-                cardRequests.push(getCard(setId, Math.random() > 0.4 ? 'Common' : 'Uncommon'));
-            }
-            
-            // Lá thứ 10 (Hiếm)
-            let roll = Math.random();
-            let r = 'Rare';
-            if (roll < DROP_RATES['ACE SPEC Rare']) r = 'ACE SPEC Rare';
-            else if (roll < DROP_RATES['Ultra Rare']) r = 'Ultra Rare';
-            else if (roll < DROP_RATES['Illustration Rare']) r = 'Illustration Rare';
-            else if (roll < DROP_RATES['Double Rare']) r = 'Double Rare';
-            cardRequests.push(getCard(setId, r));
-
-            const results = await Promise.all(cardRequests);
-            
-            results.filter(c => c !== null).forEach((card, index) => {
-                const price = card.tcgplayer?.prices?.holofoil?.market || card.tcgplayer?.prices?.normal?.market || 0.15;
-                currentCards.push({ name: card.name, price, rarity: card.rarity });
-                runningValue += price;
-                renderCardUI(card, index);
-            });
-
-            btnGenerate.disabled = false;
-            btnGenerate.innerText = "MỞ PACK NGAY";
-        }
-
-        function renderCardUI(card, index) {
-            const el = document.createElement('div');
-            el.className = 'tcg-card';
-            el.style.zIndex = index;
-            
-            let glowClass = "";
-            if (card.rarity.includes("ACE")) glowClass = "glow-ace";
-            else if (card.rarity.includes("Ultra")) glowClass = "glow-ultra";
-            else if (card.rarity.includes("Illustration")) glowClass = "glow-illustration";
-
-            el.innerHTML = `
-                <div class="card-face ${glowClass}">
-                    <img src="${card.images.large}" class="w-full h-full object-cover">
-                </div>
-            `;
-            
-            applyDragLogic(el, card.rarity);
-            deckContainer.appendChild(el);
-        }
-
-        // Xử lý kéo bài 360 độ
-        function applyDragLogic(cardEl, rarity) {
-            let startX, startY, x = 0, y = 0;
-
-            const onMove = (e) => {
-                const p = e.touches ? e.touches[0] : e;
-                x = p.clientX - startX;
-                y = p.clientY - startY;
-                cardEl.style.transform = `translate(${x}px, ${y}px) rotate(${x/15}deg)`;
-            };
-
-            const onEnd = () => {
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', onEnd);
-                document.removeEventListener('touchmove', onMove);
-                document.removeEventListener('touchend', onEnd);
-
-                if (Math.abs(x) > 130 || Math.abs(y) > 130) {
-                    const angle = Math.atan2(y, x);
-                    const force = 1200;
-                    cardEl.style.transition = 'transform 0.6s cubic-bezier(0.2, 0.5, 0.2, 1)';
-                    cardEl.style.transform = `translate(${Math.cos(angle)*force}px, ${Math.sin(angle)*force}px) rotate(${x/5}deg)`;
-                    
-                    if(rarity.includes('Rare') || rarity.includes('ACE')) {
-                        confetti({ particleCount: 30, spread: 50, origin: { y: 0.8 } });
-                    }
-
-                    setTimeout(() => {
-                        cardEl.remove();
-                        cardsRemaining--;
-                        if(cardsRemaining === 0) finishPack();
-                    }, 400);
-                } else {
-                    cardEl.style.transition = 'transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
-                    cardEl.style.transform = 'translate(0,0) rotate(0deg)';
-                }
-            };
-
-            cardEl.addEventListener('mousedown', (e) => {
-                startX = e.clientX; startY = e.clientY;
-                cardEl.style.transition = 'none';
-                document.addEventListener('mousemove', onMove);
-                document.addEventListener('mouseup', onEnd);
-            });
-
-            cardEl.addEventListener('touchstart', (e) => {
-                startX = e.touches[0].clientX; startY = e.touches[0].clientY;
-                cardEl.style.transition = 'none';
-                document.addEventListener('touchmove', onMove);
-                document.addEventListener('touchend', onEnd);
-            });
-        }
-
-        function finishPack() {
-            totalPriceText.innerText = `$${runningValue.toFixed(2)}`;
-            historyList.innerHTML = currentCards.reverse().map((c, i) => `
-                <div class="list-item-anim flex justify-between p-3 bg-gray-900 rounded-lg border-l-4 ${c.rarity.includes('Rare') ? 'border-yellow-500' : 'border-blue-500'}" style="animation-delay: ${i*0.08}s">
-                    <span class="text-xs font-bold truncate pr-2">${c.name}</span>
-                    <span class="text-green-400 font-mono font-bold">$${c.price.toFixed(2)}</span>
-                </div>
-            `).join('');
-            
-            summaryScreen.style.display = 'flex';
-            confetti({ particleCount: 150, spread: 70, origin: { y: 0.5 } });
-        }
-
-        function resetApp() { summaryScreen.style.display = 'none'; }
-
-        btnGenerate.addEventListener('click', startOpening);
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
