@@ -1,102 +1,55 @@
-/* style.css */
-body {
-    background: #020617;
-    margin: 0;
-    overflow: hidden;
-    height: 100vh;
-}
-
-.controls-container {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 300px;
-    margin: 0 auto;
-    z-index: 50;
-    position: relative;
-}
-
-#set-picker {
-    background: #1e293b;
-    color: white;
-    padding: 12px;
-    border-radius: 12px;
-    border: 1px solid #334155;
-    font-weight: bold;
-}
-
-#btn-open {
-    background: #2563eb;
-    color: white;
-    padding: 12px;
-    border-radius: 12px;
-    font-weight: 900;
-    transition: all 0.1s;
-}
-
-#btn-open:active { transform: scale(0.95); }
-
-.pack-viewport {
-    position: relative;
-    width: 320px;
-    height: 450px;
-    margin: 30px auto;
+/* Hiệu ứng lật bài */
+.card-container {
     perspective: 1000px;
+    height: 280px;
+    width: 200px;
+    cursor: pointer;
+    margin: auto;
 }
 
-.tcg-card {
+.card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+}
+
+.card-container.is-flipped .card-inner {
+    transform: rotateY(180deg);
+}
+
+.card-front, .card-back {
     position: absolute;
     width: 100%;
     height: 100%;
-    cursor: grab;
-    touch-action: none;
-    will-change: transform;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    border: 2px solid #1e1e24;
 }
 
-.card-face {
-    width: 100%;
-    height: 100%;
-    border-radius: 15px;
-    border: 3px solid #1e293b;
+/* Mặt sau bài Pokemon (Hình xoáy xanh đỏ quen thuộc) */
+.card-back {
+    background: #1a1a1d url('https://images.pokemontcg.io/sv1/back.png') no-repeat center/cover;
+}
+
+.card-front {
+    transform: rotateY(180deg);
     background: #000;
-    overflow: hidden;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
 }
 
-/* Hiệu ứng hào quang thẻ hiếm */
-.glow-rare { border-color: #eab308; box-shadow: 0 0 15px #eab308; }
-
-#summary-screen {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.95);
-    z-index: 100;
-    justify-content: center;
-    align-items: center;
-    backdrop-filter: blur(8px);
+/* Hiệu ứng hiếm */
+.rare-glow {
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+    border-color: #eab308 !important;
 }
 
-.summary-content { text-align: center; width: 90%; max-width: 400px; }
-.price-big { font-size: 4rem; font-weight: 900; color: #4ade80; margin: 10px 0; font-family: monospace; }
-.history-grid { max-height: 300px; overflow-y: auto; margin-bottom: 20px; text-align: left; }
-
-.history-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px;
-    background: #0f172a;
-    border-radius: 8px;
-    margin-bottom: 5px;
-    font-size: 0.8rem;
-    border-left: 4px solid #3b82f6;
+/* Animation xé bao bì */
+@keyframes shake {
+    0% { transform: translate(1px, 1px) rotate(0deg); }
+    100% { transform: translate(-1px, -2px) rotate(-1deg); }
 }
-
-.btn-reset {
-    background: white;
-    color: black;
-    width: 100%;
-    padding: 15px;
-    border-radius: 15px;
-    font-weight: bold;
-}
+.shaking { animation: shake 0.1s infinite; }
