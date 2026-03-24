@@ -1,15 +1,20 @@
-// script.js
-const deckContainer = document.getElementById('deck-container');
-const btnOpen = document.getElementById('btn-open');
-const summaryScreen = document.getElementById('summary-screen');
-const setPicker = document.getElementById('set-picker');
+const btnOpen = document.getElementById('btn-open-pack');
+const packVisual = document.getElementById('pack-visual');
+const startScreen = document.getElementById('start-screen');
+const cardTable = document.getElementById('card-table');
+const summaryOverlay = document.getElementById('summary-overlay');
+const totalValText = document.getElementById('total-val');
 
-let packValue = 0;
-let cardsLeft = 0;
-let packHistory = [];
+let cardsOpened = 0;
+let totalPackPrice = 0;
 
-// Tỷ lệ chuẩn (RNG)
-const RATES = { 'ACE SPEC Rare': 0.05, 'Ultra Rare': 0.07, 'Illustration Rare': 0.08, 'Double Rare': 0.17 };
+const SETS = {
+    'sv6': 'Twilight Masquerade',
+    'sv5': 'Temporal Forces',
+    'sv1': 'Scarlet & Violet'
+};
+
+const DROP_RATES = { 'ACE SPEC Rare': 0.05, 'Ultra Rare': 0.07, 'Illustration Rare': 0.08, 'Double Rare': 0.17 };
 
 async function fetchCard(setId, rarity) {
     const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=set.id:${setId} rarity:"${rarity}"&pageSize=30`);
@@ -17,110 +22,74 @@ async function fetchCard(setId, rarity) {
     return data.data[Math.floor(Math.random() * data.data.length)];
 }
 
-async function startPack() {
-    btnOpen.innerText = "LOADING...";
-    btnOpen.disabled = true;
-    deckContainer.innerHTML = '';
-    packHistory = [];
-    packValue = 0;
-    cardsLeft = 10;
-
-    const setId = setPicker.value;
+async function openPackProcess() {
+    const setId = document.getElementById('set-select').value;
+    
+    // 1. Hiệu ứng xé bao
+    packVisual.classList.add('shaking');
+    btnOpen.innerText = "ĐANG XÉ...";
+    
+    // 2. Lấy dữ liệu 10 lá (Song song)
     const promises = [];
-
-    // Lấy 9 lá thường + 1 lá hiếm song song (Parallel Fetching)
     for(let i=0; i<9; i++) promises.push(fetchCard(setId, Math.random() > 0.4 ? 'Common' : 'Uncommon'));
     
     let roll = Math.random();
     let r = 'Rare';
-    if (roll < RATES['ACE SPEC Rare']) r = 'ACE SPEC Rare';
-    else if (roll < RATES['Ultra Rare']) r = 'Ultra Rare';
-    
+    if (roll < DROP_RATES['ACE SPEC Rare']) r = 'ACE SPEC Rare';
+    else if (roll < DROP_RATES['Ultra Rare']) r = 'Ultra Rare';
     promises.push(fetchCard(setId, r));
 
     const cards = await Promise.all(promises);
 
-    cards.forEach((card, i) => {
-        if (!card) return;
+    // 3. Hiển thị bàn bài
+    startScreen.classList.add('hidden');
+    cardTable.classList.remove('hidden');
+    cardTable.innerHTML = '';
+    cardsOpened = 0;
+    totalPackPrice = 0;
+
+    cards.forEach((card, index) => {
         const price = card.tcgplayer?.prices?.holofoil?.market || 0.15;
-        packValue += price;
-        packHistory.push({ name: card.name, price, rarity: card.rarity });
-        renderCard(card, i);
+        totalPackPrice += price;
+        createCardElement(card, index);
     });
-
-    btnOpen.innerText = "MỞ PACK (QUICK)";
-    btnOpen.disabled = false;
 }
 
-function renderCard(card, index) {
-    const el = document.createElement('div');
-    el.className = `tcg-card ${card.rarity.includes('Rare') ? 'glow-rare' : ''}`;
-    el.style.zIndex = index;
-    el.innerHTML = `<div class="card-face"><img src="${card.images.large}" class="w-full h-full object-cover"></div>`;
+function createCardElement(card, index) {
+    const container = document.createElement('div');
+    container.className = 'card-container';
     
-    addDrag(el, card.rarity);
-    deckContainer.appendChild(el);
-}
+    const isRare = card.rarity.includes('Rare');
+    
+    container.innerHTML = `
+        <div class="card-inner">
+            <div class="card-back"></div>
+            <div class="card-front ${isRare ? 'rare-glow' : ''}">
+                <img src="${card.images.small}" class="w-full h-full object-contain rounded-lg">
+            </div>
+        </div>
+    `;
 
-function addDrag(el, rarity) {
-    let sX, sY, x=0, y=0;
-
-    const move = (e) => {
-        const p = e.touches ? e.touches[0] : e;
-        x = p.clientX - sX; y = p.clientY - sY;
-        el.style.transform = `translate(${x}px, ${y}px) rotate(${x/20}deg)`;
-    };
-
-    const end = () => {
-        document.removeEventListener('mousemove', move);
-        document.removeEventListener('mouseup', end);
-        document.removeEventListener('touchmove', move);
-        document.removeEventListener('touchend', end);
-
-        if (Math.abs(x) > 100 || Math.abs(y) > 100) {
-            const angle = Math.atan2(y, x);
-            // Tốc độ bay cực nhanh: 0.2s
-            el.style.transition = 'transform 0.2s ease-in';
-            el.style.transform = `translate(${Math.cos(angle)*1000}px, ${Math.sin(angle)*1000}px)`;
+    container.onclick = function() {
+        if (!this.classList.contains('is-flipped')) {
+            this.classList.add('is-flipped');
+            cardsOpened++;
+            if (isRare) confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
             
-            setTimeout(() => {
-                el.remove();
-                cardsLeft--;
-                if(cardsLeft === 0) showSummary();
-            }, 150); // Xóa thẻ sau 150ms
-        } else {
-            el.style.transition = 'transform 0.2s';
-            el.style.transform = 'translate(0,0)';
+            // Nếu lật hết 10 lá, hiện tổng kết sau 1s
+            if (cardsOpened === 10) {
+                setTimeout(showFinalSummary, 1500);
+            }
         }
     };
 
-    el.addEventListener('mousedown', (e) => {
-        sX = e.clientX; sY = e.clientY;
-        el.style.transition = 'none';
-        document.addEventListener('mousemove', move);
-        document.addEventListener('mouseup', end);
-    });
-    
-    el.addEventListener('touchstart', (e) => {
-        sX = e.touches[0].clientX; sY = e.touches[0].clientY;
-        el.style.transition = 'none';
-        document.addEventListener('touchmove', move);
-        document.addEventListener('touchend', end);
-    });
+    cardTable.appendChild(container);
 }
 
-function showSummary() {
-    document.getElementById('total-price-text').innerText = `$${packValue.toFixed(2)}`;
-    const list = document.getElementById('history-list');
-    list.innerHTML = packHistory.map(c => `
-        <div class="history-item"><span>${c.name}</span><b>$${c.price.toFixed(2)}</b></div>
-    `).join('');
-    summaryScreen.style.display = 'flex';
-    confetti({ particleCount: 150, spread: 70, origin: { y: 0.5 } });
+function showFinalSummary() {
+    totalValText.innerText = `$${totalPackPrice.toFixed(2)}`;
+    summaryOverlay.classList.remove('hidden');
+    confetti({ particleCount: 200, spread: 100 });
 }
 
-function resetApp() {
-    summaryScreen.style.display = 'none';
-}
-
-btnOpen.addEventListener('click', startPack);
+btnOpen.addEventListener('click', openPackProcess);
